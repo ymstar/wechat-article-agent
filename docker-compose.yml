@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  wechat-article-creator:
+    build: .
+    container_name: wechat-article-creator
+    ports:
+      - "5000:5000"
+    environment:
+      - COZE_WORKSPACE_PATH=/app
+      - COZE_WORKLOAD_IDENTITY_API_KEY=${COZE_WORKLOAD_IDENTITY_API_KEY}
+      - COZE_INTEGRATION_MODEL_BASE_URL=${COZE_INTEGRATION_MODEL_BASE_URL}
+      # 微信公众号配置（可选，也可以在 config/agent_llm_config.json 中配置）
+      - WECHAT_APP_ID=${WECHAT_APP_ID}
+      - WECHAT_APP_SECRET=${WECHAT_APP_SECRET}
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MCP Server（可选）
+  mcp-server:
+    build: .
+    container_name: wechat-mcp-server
+    command: ["python", "mcp_server.py"]
+    environment:
+      - COZE_WORKSPACE_PATH=/app
+      - COZE_WORKLOAD_IDENTITY_API_KEY=${COZE_WORKLOAD_IDENTITY_API_KEY}
+      - COZE_INTEGRATION_MODEL_BASE_URL=${COZE_INTEGRATION_MODEL_BASE_URL}
+    volumes:
+      - ./config:/app/config
+    profiles:
+      - mcp  # 使用 --profile mcp 启动
