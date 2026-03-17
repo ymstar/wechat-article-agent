@@ -1,4 +1,6 @@
+<div align="center">
 # 微信公众号自动写作发布智能体
+</div>
 
 <div align="center">
 
@@ -352,9 +354,9 @@ limitations under the License.
 
 ## 📞 联系方式
 
-- **项目地址**：[https://github.com/[your-username]/[your-repo]](https://github.com/[your-username]/[your-repo])
-- **问题反馈**：[Issues](https://github.com/[your-username]/[your-repo]/issues)
-- **讨论交流**：[Discussions](https://github.com/[your-username]/[your-repo]/discussions)
+- **项目地址**：[https://github.com/[your-username]/[your-repo]](https://github.com/ymstar/wechat-article-agen)
+- **问题反馈**：[Issues](https://github.com/ymstar/wechat-article-agen/issues)
+- **讨论交流**：[Discussions](https://github.com/ymstar/wechat-article-agen/discussions)
 
 ---
 
@@ -362,13 +364,13 @@ limitations under the License.
 
 如果这个项目对你有帮助，请给我们一个 Star ⭐️
 
-[![Star History Chart](https://api.star-history.com/svg?repos=[your-username]/[your-repo]&type=Date)](https://star-history.com/#[your-username]/[your-repo]&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ymstar/wechat-article-agen&type=Date)](https://star-history.com/#ymstar/wechat-article-agen&Date)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by [Your Name]**
+**Made with ❤️ by ymstar**
 
 [⬆ 回到顶部](#微信公众号自动写作发布智能体)
 
