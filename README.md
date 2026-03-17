@@ -1,18 +1,15 @@
 <div align="center">
-# 微信公众号自动写作发布智能体
-</div>
 
-<div align="center">
+# 微信公众号自动写作发布智能体
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 ![LangChain](https://img.shields.io/badge/LangChain-1.0.3-green.svg)
 ![LangGraph](https://img.shields.io/badge/LangGraph-1.0.2-orange.svg)
-![GitHub stars](https://img.shields.io/github/stars/[your-username]/[your-repo]?style=social)
-![GitHub forks](https://img.shields.io/github/forks/[your-username]/[your-repo]?style=social)
+![GitHub stars](https://img.shields.io/github/stars/ymstar/wechat-article-agent?style=social)
+![GitHub forks](https://img.shields.io/github/forks/ymstar/wechat-article-agent?style=social)
 
-[![CI/CD](https://github.com/[your-username]/[your-repo]/actions/workflows/ci.yml/badge.svg)](https://github.com/[your-username]/[your-repo]/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/[your-username]/[your-repo]/branch/main/graph/badge.svg)](https://codecov.io/gh/[your-username]/[your-repo])
+[![codecov](https://codecov.io/gh/ymstar/wechat-article-agent/branch/main/graph/badge.svg)](https://codecov.io/gh/[your-username]/[your-repo])
 
 **基于 LangChain 和 LangGraph 的智能内容创作平台**
 
@@ -355,8 +352,8 @@ limitations under the License.
 ## 📞 联系方式
 
 - **项目地址**：[https://github.com/[your-username]/[your-repo]](https://github.com/ymstar/wechat-article-agen)
-- **问题反馈**：[Issues](https://github.com/ymstar/wechat-article-agen/issues)
-- **讨论交流**：[Discussions](https://github.com/ymstar/wechat-article-agen/discussions)
+- **问题反馈**：[Issues](https://github.com/ymstar/wechat-article-agent/issues)
+- **讨论交流**：[Discussions](https://github.com/ymstar/wechat-article-agent/discussions)
 
 ---
 
@@ -364,7 +361,7 @@ limitations under the License.
 
 如果这个项目对你有帮助，请给我们一个 Star ⭐️
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ymstar/wechat-article-agen&type=Date)](https://star-history.com/#ymstar/wechat-article-agen&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ymstar/wechat-article-agent&type=Date)](https://star-history.com/#ymstar/wechat-article-agent&Date)
 
 ---
 
