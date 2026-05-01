@@ -25,7 +25,6 @@ wheels/
 venv/
 ENV/
 env/
-.env
 
 # IDE
 .vscode/
@@ -68,6 +67,7 @@ Thumbs.db
 
 # Security - Never commit sensitive information
 config/agent_llm_config.json
+config/agent_config.json
 .env
 .env.local
 .env.*.local

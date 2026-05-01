@@ -2,6 +2,7 @@
 """
 微信公众号智能体 MCP Server
 支持通过 MCP 协议为 Claude 等 AI 助手提供服务
+去掉扣子依赖
 """
 import asyncio
 import json
@@ -10,14 +11,13 @@ import os
 from typing import Any, Dict
 
 # 添加项目路径
-workspace_path = os.getenv("COZE_WORKSPACE_PATH", "/workspace/projects")
-src_path = os.path.join(workspace_path, "src")
+src_path = os.path.join(os.path.dirname(__file__), "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 try:
     from mcp.server import Server
-    from mcp.types import Tool, TextContent, ImageContent
+    from mcp.types import Tool, TextContent
     MCP_AVAILABLE = True
 except ImportError:
     print("⚠️  MCP SDK 未安装，请运行: pip install mcp")
@@ -27,13 +27,12 @@ except ImportError:
 # 导入项目模块
 try:
     from src.agents.agent import build_agent
-    from coze_coding_utils.runtime_ctx.context import new_context
-    from tools.web_search_tool import search_web
-    from tools.content_audit_tool import audit_content
+    from src.config import get_config, validate_config
     PROJECT_AVAILABLE = True
 except Exception as e:
     print(f"⚠️  项目模块导入失败: {e}")
     PROJECT_AVAILABLE = False
+
 
 # 创建 MCP Server
 app = Server("wechat-article-creator")
@@ -42,8 +41,15 @@ app = Server("wechat-article-creator")
 agent = None
 if PROJECT_AVAILABLE:
     try:
-        agent = build_agent()
-        print("✅ Agent 初始化成功")
+        # 验证配置
+        valid, errors = validate_config()
+        if valid:
+            agent = build_agent()
+            print("✅ Agent 初始化成功")
+        else:
+            print("⚠️  Agent 初始化失败 - 配置验证失败:")
+            for err in errors:
+                print(f"  - {err}")
     except Exception as e:
         print(f"⚠️  Agent 初始化失败: {e}")
         agent = None
@@ -112,25 +118,30 @@ async def create_wechat_article(
     publish_note = "并发布到微信公众号草稿箱" if auto_publish else ""
     
     prompt = f"""
-    请为我创建一篇关于"{topic}"的微信公众号文章{publish_note}。
-    
-    要求：
-    - 风格：{style_map.get(style, "专业严谨")}
-    - 字数：{length}字左右
-    - 包含：标题、导语、正文（多个小节）、总结
-    - 排版：使用HTML标签实现专业排版（标题、段落、引用、列表等）
-    - 内容：基于最新搜索结果，引用权威来源
-    {'- 执行流程：创作 → 生成配图 → 内容审核 → 发布草稿' if auto_publish else '- 仅生成文章和配图，不发布'}
-    
-    请严格按照工作流程执行，每完成一步都要汇报进度。
-    """
+请为我创建一篇关于"{topic}"的微信公众号文章{publish_note}。
+
+要求：
+- 风格：{style_map.get(style, "专业严谨")}
+- 字数：{length}字左右
+- 包含：标题、导语、正文（多个小节）、总结
+- 排版：使用HTML标签实现专业排版（标题、段落、引用、列表等）
+- 内容：基于最新搜索结果，引用权威来源
+{'执行流程：创作 → 生成配图 → 内容审核 → 发布草稿' if auto_publish else '仅生成文章和配图，不发布'}
+
+请严格按照工作流程执行，每完成一步都要汇报进度。
+"""
     
     try:
         from langchain_core.messages import HumanMessage
-        ctx = new_context(method="mcp")
+        import uuid
         
         messages = [HumanMessage(content=prompt)]
-        result = await agent.ainvoke({"messages": messages}, config={"configurable": {"thread_id": ctx.run_id}})
+        thread_id = str(uuid.uuid4())
+        
+        result = await agent.ainvoke(
+            {"messages": messages},
+            config={"configurable": {"thread_id": thread_id}}
+        )
         
         # 提取结果
         response_text = ""
@@ -162,7 +173,7 @@ async def create_wechat_article(
         suggestions += "\n1. 微信公众号配置是否正确（app_id 和 app_secret）"
         suggestions += "\n2. 网络连接是否正常"
         suggestions += "\n3. API 配额是否充足"
-        suggestions += "\n4. 配置文件路径是否正确"
+        suggestions += "\n4. 配置文件 config/agent_config.json 是否正确"
         
         return [TextContent(type="text", text=error_msg + suggestions)]
 
@@ -195,6 +206,7 @@ async def audit_wechat_content(title: str, content: str) -> list[TextContent]:
     """
     
     try:
+        from src.tools.content_audit_tool import audit_content
         result = audit_content.invoke({"title": title, "content": content})
         return [TextContent(type="text", text=str(result))]
     except Exception as e:
@@ -227,6 +239,7 @@ async def search_web_for_article(query: str) -> list[TextContent]:
     """
     
     try:
+        from src.tools.web_search_tool import search_web
         result = search_web.invoke({"query": query})
         return [TextContent(type="text", text=str(result))]
     except Exception as e:
@@ -250,28 +263,16 @@ async def get_wechat_config_status() -> list[TextContent]:
     """
     
     try:
-        import json
-        from pathlib import Path
+        config = get_config()
+        wechat_cfg = config.wechat
         
-        config_path = os.path.join(workspace_path, "config/agent_llm_config.json")
-        
-        if not os.path.exists(config_path):
-            return [TextContent(
-                type="text",
-                text="❌ 配置文件不存在\n\n请确保 config/agent_llm_config.json 存在"
-            )]
-        
-        with open(config_path, 'r', encoding='utf-8') as f:
-            cfg = json.load(f)
-        
-        wechat_config = cfg.get("wechat", {})
-        app_id = wechat_config.get("app_id", "")
-        app_secret = wechat_config.get("app_secret", "")
+        app_id = wechat_cfg.app_id
+        app_secret = wechat_cfg.app_secret
         
         if not app_id or not app_secret:
             return [TextContent(
                 type="text",
-                text="❌ 微信公众号配置不完整\n\n请在 config/agent_llm_config.json 中配置：\n{\n  \"wechat\": {\n    \"app_id\": \"your_app_id\",\n    \"app_secret\": \"your_app_secret\"\n  }\n}"
+                text="❌ 微信公众号配置不完整\n\n请在 config/agent_config.json 中配置：\n{\n  \"wechat\": {\n    \"app_id\": \"your_app_id\",\n    \"app_secret\": \"your_app_secret\"\n  }\n}"
             )]
         
         # 隐藏 app_secret 的部分信息

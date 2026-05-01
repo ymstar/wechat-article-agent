@@ -1,0 +1,34 @@
+{
+    "llm": {
+        "provider": "openai",
+        "api_key": "sk-your-api-key",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4o",
+        "temperature": 0.7,
+        "max_tokens": 4000,
+        "timeout": 120,
+        "thinking": "disabled"
+    },
+    "search": {
+        "provider": "tavily",
+        "api_key": "tvly-your-tavily-api-key",
+        "search_depth": "advanced"
+    },
+    "image": {
+        "provider": "openai",
+        "api_key": "sk-your-api-key",
+        "model": "dall-e-3",
+        "size": "1024x1024",
+        "quality": "standard"
+    },
+    "wechat": {
+        "app_id": "wx-your-wechat-app-id",
+        "app_secret": "your-wechat-app-secret"
+    },
+    "audit": {
+        "enable_llm_audit": true,
+        "sensitive_words_path": "config/sensitive_words.txt"
+    },
+    "max_messages": 40,
+    "system_prompt": "# 角色定义\n你是一位专业的微信公众号内容创作者..."
+}
