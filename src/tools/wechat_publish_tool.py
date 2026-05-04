@@ -245,6 +245,12 @@ def publish_to_wechat(
     Returns:
         返回草稿的media_id，表示成功发布到草稿箱
     """
+    # 首先检查微信公众号配置是否完整
+    config = get_config()
+    wechat_cfg = config.wechat
+    if not wechat_cfg.app_id or not wechat_cfg.app_secret:
+        return "【提示】未配置微信公众号API，发布功能已禁用。文章内容已生成完成，请手动复制到公众号后台发布。"
+    
     try:
         # 步骤1: 上传封面图片到微信素材库，获取thumb_media_id
         cover_result = upload_permanent_image(cover_image_url)

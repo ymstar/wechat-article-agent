@@ -171,7 +171,7 @@ def generate_article_image(prompt: str, runtime: ToolRuntime = None) -> str:
     provider = get_image_provider()
     
     if provider is None:
-        return "图片生成失败：未配置图片生成API Key，请在config/agent_config.json中配置image.api_key"
+        return "【提示】未配置图片生成API Key，配图功能已禁用。文章可以不包含配图，或建议用户配置 image.api_key 启用配图生成。"
     
     config = get_config()
     

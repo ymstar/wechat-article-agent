@@ -209,6 +209,6 @@ def search_web(query: str, runtime: ToolRuntime = None) -> str:
     provider = get_search_provider()
     
     if provider is None:
-        return "搜索失败：未配置搜索API Key，请在config/agent_config.json中配置search.api_key"
+        return "【提示】未配置搜索API Key，搜索功能已禁用。请基于你的内置知识进行创作，或建议用户配置 search.api_key 启用搜索。"
     
     return provider.search(query=query, count=10)

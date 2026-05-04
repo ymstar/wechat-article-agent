@@ -254,31 +254,31 @@ class ConfigManager:
         """
         验证配置完整性
         
+        注意：现在支持"单API Key启动"，只需要配置 llm.api_key 即可运行
+        其他功能（搜索、配图、发布）都是可选的
+        
         Returns:
             (是否有效, 错误信息列表)
         """
         errors = []
+        warnings = []
         config = self.config
         
-        # 检查LLM配置
+        # 检查LLM配置（这是必须的）
         if not config.llm.api_key:
-            errors.append("LLM API Key 未配置 (llm.api_key)")
+            errors.append("LLM API Key 未配置 (llm.api_key) - 必须配置才能运行")
         
-        # 检查搜索配置
+        # 以下是可选配置的提示（不再是错误）
         if not config.search.api_key:
-            errors.append("搜索 API Key 未配置 (search.api_key)")
+            warnings.append("搜索 API Key 未配置 - 搜索功能已禁用，将使用内置知识创作")
         
-        # 检查图片配置
         if not config.image.api_key:
-            errors.append("图片生成 API Key 未配置 (image.api_key)")
+            warnings.append("图片生成 API Key 未配置 - 配图功能已禁用，文章将不包含封面图")
         
-        # 检查微信配置
-        if not config.wechat.app_id:
-            errors.append("微信公众号 AppID 未配置 (wechat.app_id)")
-        if not config.wechat.app_secret:
-            errors.append("微信公众号 AppSecret 未配置 (wechat.app_secret)")
+        if not config.wechat.app_id or not config.wechat.app_secret:
+            warnings.append("微信公众号配置未完成 - 发布功能已禁用，需手动复制文章到公众号后台")
         
-        return len(errors) == 0, errors
+        return len(errors) == 0, errors + warnings
 
 
 # 全局配置实例

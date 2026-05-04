@@ -86,32 +86,36 @@ pip install -r requirements.txt
 
 ## 🚀 快速开始
 
-### 1. 克隆项目
+### 极简启动（只需要一个API Key）
 
 ```bash
+# 1. 克隆项目
 git clone https://github.com/ymstar/wechat-article-agent.git
 cd wechat-article-agent
-```
 
-### 2. 安装依赖
-
-```bash
+# 2. 安装依赖
 pip install -r requirements.txt
-```
 
-### 3. 配置 API Key
-
-```bash
-# 复制配置模板
+# 3. 复制配置文件
 cp config/agent_config.json.example config/agent_config.json
 
-# 编辑配置文件
+# 4. 只需要填 `llm.api_key` 这一项！其他都可以留空
 vim config/agent_config.json
+
+# 5. 运行
+python src/main.py
 ```
 
-详细配置说明请查看 [配置指南](#-配置指南)
+### 可选增强功能
 
-### 4. 运行服务
+| 功能 | 配置项 | 说明 |
+|------|--------|------|
+| 🌐 **联网搜索** | `search.api_key` | 支持 Tavily/Serper/SerpAPI，获取最新信息 |
+| 🎨 **AI配图** | `image.api_key` | 支持 DALL-E/Stability AI，自动生成封面图 |
+| 📤 **一键发布** | `wechat.app_id/app_secret` | 直接发布到公众号草稿箱 |
+| ✅ **内容审核** | - | 始终启用（用同一个LLM） |
+
+### 运行模式
 
 ```bash
 # HTTP服务模式 (默认端口5000)
@@ -120,11 +124,11 @@ python src/main.py
 # 或指定端口
 python src/main.py -p 8080
 
-# CLI模式
+# CLI模式（单次执行）
 python src/main.py -m cli -i "请创作一篇关于AI发展趋势的文章"
 ```
 
-### 5. 访问 API
+### 访问 API
 
 ```
 API文档: http://localhost:5000/docs
@@ -133,6 +137,22 @@ API文档: http://localhost:5000/docs
 ---
 
 ## 📝 配置指南
+
+### 最小配置（只需要 LLM）
+
+只需要填写 `llm` 部分，其他都可以留空：
+
+```json
+{
+    "llm": {
+        "provider": "openai",
+        "api_key": "sk-your-api-key",  // ⬅️ 只需要填这个！
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4o"
+    }
+    // 其他配置项都可以留空或删除
+}
+```
 
 ### 完整配置示例
 
@@ -149,19 +169,19 @@ API文档: http://localhost:5000/docs
     },
     "search": {
         "provider": "tavily",
-        "api_key": "tvly-your-tavily-api-key",
+        "api_key": "",
         "search_depth": "advanced"
     },
     "image": {
         "provider": "openai",
-        "api_key": "sk-your-api-key",
+        "api_key": "",
         "model": "dall-e-3",
         "size": "1024x1024",
         "quality": "standard"
     },
     "wechat": {
-        "app_id": "wx-your-app-id",
-        "app_secret": "your-app-secret"
+        "app_id": "",
+        "app_secret": ""
     },
     "audit": {
         "enable_llm_audit": true,
@@ -169,6 +189,12 @@ API文档: http://localhost:5000/docs
     }
 }
 ```
+
+> 📝 **配置说明**：
+> - `llm.api_key`: **必须配置**，否则无法运行
+> - `search.api_key`: 可选，不配置则跳过搜索
+> - `image.api_key`: 可选，不配置则跳过配图
+> - `wechat.app_id/app_secret`: 可选，不配置则需手动复制文章
 
 ### 配置项说明
 
