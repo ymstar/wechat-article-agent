@@ -1,2 +1,5 @@
-mcp
- anthropic
+# MCP Server依赖
+mcp>=1.0.0
+
+# 项目核心依赖
+-r requirements.txt

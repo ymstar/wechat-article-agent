@@ -2,12 +2,14 @@
 内容审核工具 - 根据微信公众号内容规范审核文章内容
 """
 import re
-from typing import Dict, List, Any
+import os
+from typing import Dict, List, Any, Optional
 from langchain.tools import tool
 from langchain.tools import ToolRuntime
-from coze_coding_utils.runtime_ctx.context import new_context
-from coze_coding_dev_sdk import LLMClient
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+
+from src.config import get_config
 
 # 微信公众号违规内容分类
 VIOLATION_CATEGORIES = {
@@ -54,6 +56,45 @@ VIOLATION_CATEGORIES = {
 }
 
 
+def load_sensitive_words() -> List[str]:
+    """从配置文件加载敏感词"""
+    config = get_config()
+    words_path = config.audit.sensitive_words_path
+    
+    # 支持绝对路径和相对路径
+    if not os.path.isabs(words_path):
+        # 相对路径，相对于项目根目录
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        words_path = os.path.join(base_dir, words_path)
+    
+    if not os.path.exists(words_path):
+        # 返回默认敏感词
+        return _get_default_sensitive_words()
+    
+    try:
+        with open(words_path, 'r', encoding='utf-8') as f:
+            words = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        return words
+    except Exception:
+        return _get_default_sensitive_words()
+
+
+def _get_default_sensitive_words() -> List[str]:
+    """获取默认敏感词列表"""
+    return [
+        # 政治敏感词
+        "颠覆", "暴动", "游行示威", "独立", "分裂",
+        # 违法词汇
+        "赌博", "博彩", "毒品", "冰毒", "海洛因", "枪支", "炸弹",
+        # 低俗词汇
+        "色情", "淫秽", "裸聊", "一夜情",
+        # 虚假宣传词汇
+        "包治百病", "根治", "100%有效", "神医", "祖传秘方",
+        # 营销违规词
+        "点击领取", "转发有奖", "分享赚佣金", "扫码领红包"
+    ]
+
+
 def check_sensitive_words(text: str) -> List[str]:
     """
     检查文本中的敏感词
@@ -64,21 +105,7 @@ def check_sensitive_words(text: str) -> List[str]:
     Returns:
         发现的敏感词列表
     """
-    # 基础敏感词列表（可根据需要扩展）
-    sensitive_words = [
-        # 政治敏感词（示例，实际应用中应使用更完整的词库）
-        "颠覆", "暴动", "游行示威", "独立", "分裂",
-        # 违法词汇
-        "赌博", "博彩", "六合彩", "毒品", "冰毒", "海洛因",
-        "枪支", "炸弹", "炸药",
-        # 低俗词汇
-        "色情", "淫秽", "裸聊", "一夜情",
-        # 虚假宣传词汇
-        "包治百病", "根治", "100%有效", "神医", "祖传秘方",
-        # 营销违规词
-        "点击领取", "转发有奖", "分享赚佣金", "扫码领红包"
-    ]
-    
+    sensitive_words = load_sensitive_words()
     found_words = []
     text_lower = text.lower()
     
@@ -122,6 +149,28 @@ def check_title_compliance(title: str) -> Dict[str, Any]:
     }
 
 
+def get_llm_client() -> Optional[ChatOpenAI]:
+    """获取LLM客户端"""
+    config = get_config()
+    llm_cfg = config.llm
+    
+    if not llm_cfg.api_key:
+        return None
+    
+    try:
+        llm = ChatOpenAI(
+            model=llm_cfg.model,
+            api_key=llm_cfg.api_key,
+            base_url=llm_cfg.base_url,
+            temperature=0.1,
+            max_tokens=1000,
+            timeout=llm_cfg.timeout,
+        )
+        return llm
+    except Exception:
+        return None
+
+
 def audit_content_with_llm(title: str, content: str) -> Dict[str, Any]:
     """
     使用 LLM 进行智能内容审核
@@ -133,8 +182,15 @@ def audit_content_with_llm(title: str, content: str) -> Dict[str, Any]:
     Returns:
         审核结果字典
     """
-    ctx = new_context(method="audit")
-    client = LLMClient(ctx=ctx)
+    llm = get_llm_client()
+    
+    if llm is None:
+        return {
+            "pass": True,
+            "violations": [],
+            "suggestions": [],
+            "note": "LLM未配置，跳过智能审核"
+        }
     
     system_prompt = """你是一位专业的内容审核专家，负责审核微信公众号文章内容是否符合平台规范。
 
@@ -165,7 +221,6 @@ def audit_content_with_llm(title: str, content: str) -> Dict[str, Any]:
 如果没有违规内容，violations 应为空数组。"""
 
     # 移除 HTML 标签，提取纯文本
-    import re
     text_only = re.sub(r'<[^>]+>', '', content)
     
     user_message = f"""请审核以下文章内容：
@@ -183,15 +238,9 @@ def audit_content_with_llm(title: str, content: str) -> Dict[str, Any]:
             HumanMessage(content=user_message)
         ]
         
-        response = client.invoke(
-            messages=messages,
-            temperature=0.1,  # 使用较低温度确保一致性
-            max_completion_tokens=1000
-        )
-        
-        # 解析 LLM 返回的 JSON
-        import json
+        response = llm.invoke(messages)
         response_text = response.content
+        
         if isinstance(response_text, list):
             response_text = " ".join([str(item) for item in response_text])
         
@@ -241,12 +290,20 @@ def audit_content(title: str, content: str, runtime: ToolRuntime = None) -> str:
         title_check = check_title_compliance(title)
         
         # 步骤2: 检查敏感词
-        import re
         text_content = re.sub(r'<[^>]+>', '', content)
         sensitive_words = check_sensitive_words(text_content)
         
         # 步骤3: 使用 LLM 进行智能审核
-        llm_result = audit_content_with_llm(title, content)
+        config = get_config()
+        if config.audit.enable_llm_audit:
+            llm_result = audit_content_with_llm(title, content)
+        else:
+            llm_result = {
+                "pass": True,
+                "violations": [],
+                "suggestions": [],
+                "note": "LLM审核已禁用"
+            }
         
         # 汇总审核结果
         all_issues = []
@@ -268,7 +325,7 @@ def audit_content(title: str, content: str, runtime: ToolRuntime = None) -> str:
         
         # 生成审核报告
         if len(all_issues) == 0:
-            return """✅ 内容审核通过
+            report = """✅ 内容审核通过
 
 审核详情：
 - 标题：合规
@@ -277,6 +334,11 @@ def audit_content(title: str, content: str, runtime: ToolRuntime = None) -> str:
 - 智能审核：通过
 
 文章内容符合微信公众号内容规范，可以发布。"""
+            
+            if llm_result.get("note"):
+                report += f"\n\n备注：{llm_result['note']}"
+            
+            return report
         else:
             issue_list = "\n".join([f"  ❌ {issue}" for issue in all_issues])
             

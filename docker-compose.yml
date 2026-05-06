@@ -1,39 +1,60 @@
 version: '3.8'
 
 services:
-  wechat-article-creator:
+  wechat-agent:
     build: .
-    container_name: wechat-article-creator
+    container_name: wechat-article-agent
     ports:
       - "5000:5000"
+    volumes:
+      # 挂载配置文件
+      - ./config:/app/config:ro
+      # 挂载日志目录
+      - ./logs:/app/logs
     environment:
-      - COZE_WORKSPACE_PATH=/app
-      - COZE_WORKLOAD_IDENTITY_API_KEY=${COZE_WORKLOAD_IDENTITY_API_KEY}
-      - COZE_INTEGRATION_MODEL_BASE_URL=${COZE_INTEGRATION_MODEL_BASE_URL}
-      # 微信公众号配置（可选，也可以在 config/agent_llm_config.json 中配置）
+      # LLM配置
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      
+      # 搜索配置
+      - SEARCH_PROVIDER=${SEARCH_PROVIDER:-tavily}
+      - SEARCH_API_KEY=${SEARCH_API_KEY}
+      
+      # 图片配置
+      - IMAGE_API_KEY=${IMAGE_API_KEY}
+      
+      # 微信配置
       - WECHAT_APP_ID=${WECHAT_APP_ID}
       - WECHAT_APP_SECRET=${WECHAT_APP_SECRET}
-    volumes:
-      - ./logs:/app/logs
-      - ./config:/app/config
+      
+      # 日志
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
 
-  # MCP Server（可选）
-  mcp-server:
-    build: .
-    container_name: wechat-mcp-server
-    command: ["python", "mcp_server.py"]
-    environment:
-      - COZE_WORKSPACE_PATH=/app
-      - COZE_WORKLOAD_IDENTITY_API_KEY=${COZE_WORKLOAD_IDENTITY_API_KEY}
-      - COZE_INTEGRATION_MODEL_BASE_URL=${COZE_INTEGRATION_MODEL_BASE_URL}
-    volumes:
-      - ./config:/app/config
-    profiles:
-      - mcp  # 使用 --profile mcp 启动
+# 可选：PostgreSQL存储（用于会话持久化）
+# 取消注释以启用
+# postgres:
+#   image: postgres:15-alpine
+#   container_name: wechat-agent-db
+#   environment:
+#     - POSTGRES_DB=wechat_agent
+#     - POSTGRES_USER=postgres
+#     - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+#   volumes:
+#     - postgres_data:/var/lib/postgresql/data
+#   restart: unless-stopped
+#
+# wechat-agent:
+#   environment:
+#     - PGDATABASE_URL=postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/wechat_agent
+#
+# volumes:
+#   postgres_data:

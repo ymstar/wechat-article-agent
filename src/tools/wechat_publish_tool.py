@@ -6,34 +6,28 @@ import json
 import base64
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from langchain.tools import tool
 from langchain.tools import ToolRuntime
-from coze_coding_utils.runtime_ctx.context import new_context
+
+from src.config import get_config
 
 # 全局变量缓存 access_token 和过期时间
 _access_token_cache = None
 _token_expire_time = 0
 
 
-def load_wechat_config():
+def load_wechat_config() -> tuple:
     """加载微信公众号配置"""
-    import json
-    from pathlib import Path
+    config = get_config()
+    wechat_cfg = config.wechat
     
-    workspace_path = os.getenv("COZE_WORKSPACE_PATH", "/workspace/projects")
-    config_path = os.path.join(workspace_path, "config/agent_llm_config.json")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        cfg = json.load(f)
-    
-    wechat_config = cfg.get("wechat", {})
-    app_id = wechat_config.get("app_id", "")
-    app_secret = wechat_config.get("app_secret", "")
+    app_id = wechat_cfg.app_id
+    app_secret = wechat_cfg.app_secret
     
     if not app_id or not app_secret:
         raise ValueError(
-            "微信公众号配置未完成！请在 config/agent_llm_config.json 中配置 app_id 和 app_secret。\n"
+            "微信公众号配置未完成！请在 config/agent_config.json 中配置 app_id 和 app_secret。\n"
             "配置示例：\n"
             "{\n"
             "  \"wechat\": {\n"
@@ -93,10 +87,11 @@ def _is_base64(s: str) -> bool:
         return False
 
 
-def _prepare_media_files(image: Any):
+def _prepare_media_files(image: Any) -> tuple:
     """准备图片文件上传"""
     files = None
     f_to_close = None
+    
     if isinstance(image, bytes):
         files = {"media": ("image.jpg", image)}
     elif isinstance(image, str):
@@ -121,6 +116,7 @@ def _prepare_media_files(image: Any):
         files = {"media": (os.path.basename(name), image)}
     else:
         raise ValueError("不支持的图片参数类型")
+    
     return files, f_to_close
 
 
@@ -137,6 +133,7 @@ def upload_permanent_image(image: Any) -> Dict[str, Any]:
     token = get_access_token()
     url = f"https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={token}&type=image"
     files, f_to_close = _prepare_media_files(image)
+    
     try:
         r = requests.post(url, files=files, timeout=30)
         r.raise_for_status()
@@ -149,8 +146,10 @@ def upload_permanent_image(image: Any) -> Dict[str, Any]:
                 f_to_close.close()
             except Exception:
                 pass
+    
     if data.get("errcode", 0) != 0:
         raise Exception(f"上传永久图片失败: {data}")
+    
     return {"media_id": data.get("media_id"), "url": data.get("url")}
 
 
@@ -167,6 +166,7 @@ def upload_news_image(image: Any) -> str:
     token = get_access_token()
     url = f"https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token={token}"
     files, f_to_close = _prepare_media_files(image)
+    
     try:
         r = requests.post(url, files=files, timeout=30)
         r.raise_for_status()
@@ -179,11 +179,14 @@ def upload_news_image(image: Any) -> str:
                 f_to_close.close()
             except Exception:
                 pass
+    
     if data.get("errcode", 0) != 0:
         raise Exception(f"上传图文消息图片失败: {data}")
+    
     u = data.get("url")
     if not u:
         raise Exception(f"上传图文消息图片失败: {data}")
+    
     return u
 
 
@@ -199,8 +202,10 @@ def add_draft(articles: List[Dict[str, Any]]) -> str:
     """
     if not articles:
         raise ValueError("articles不能为空")
+    
     token = get_access_token()
     url = f"https://api.weixin.qq.com/cgi-bin/draft/add?access_token={token}"
+    
     try:
         json_data = json.dumps({"articles": articles}, ensure_ascii=False).encode("utf-8")
         r = requests.post(url, data=json_data, timeout=15)
@@ -208,11 +213,14 @@ def add_draft(articles: List[Dict[str, Any]]) -> str:
         data = r.json()
     except Exception as e:
         raise Exception(f"新增草稿异常: {e}")
+    
     if data.get("errcode", 0) != 0:
         raise Exception(f"新增草稿失败: {data}")
+    
     media_id = data.get("media_id")
     if not media_id:
         raise Exception(f"新增草稿失败: {data}")
+    
     return media_id
 
 
@@ -237,6 +245,12 @@ def publish_to_wechat(
     Returns:
         返回草稿的media_id，表示成功发布到草稿箱
     """
+    # 首先检查微信公众号配置是否完整
+    config = get_config()
+    wechat_cfg = config.wechat
+    if not wechat_cfg.app_id or not wechat_cfg.app_secret:
+        return "【提示】未配置微信公众号API，发布功能已禁用。文章内容已生成完成，请手动复制到公众号后台发布。"
+    
     try:
         # 步骤1: 上传封面图片到微信素材库，获取thumb_media_id
         cover_result = upload_permanent_image(cover_image_url)
@@ -245,8 +259,7 @@ def publish_to_wechat(
         # 步骤2: 处理文章内容中的图片
         # 查找所有<img>标签，将图片URL替换为微信URL
         processed_content = content
-        import re
-        img_pattern = r'<img[^>]+src=["\']([^"\']+)["\'][^>]*/?>'
+        img_pattern = r'<img[^>]+src=["\']([^"\']+)["\'][^>]*>'
         img_matches = re.findall(img_pattern, content)
         
         for img_url in img_matches:
